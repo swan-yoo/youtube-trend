@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>유튜브 트렌드 레이더 v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface2: #1a1a26;
+  --border: rgba(255,255,255,0.07);
+  --accent: #ff3d3d;
+  --accent2: #ff6b35;
+  --gold: #f5c842;
+  --teal: #2dd4bf;
+  --text: #f0f0f0;
+  --muted: #888;
+  --dim: #555;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; }
+
+header {
+  padding: 24px 32px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 30px; height: 30px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.logo-text { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.05em; }
+.logo-sub { font-size: 10px; color: var(--muted); font-family: 'Space Mono', monospace; }
+.last-updated { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--dim); }
+
+.main { padding: 24px 32px; }
+
+/* Search bar */
+.search-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.search-title { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
+.search-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.search-input {
+  flex: 1; min-width: 200px;
+  padding: 11px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-input:focus { border-color: rgba(255,61,61,0.5); }
+.search-input::placeholder { color: var(--dim); }
+
+/* Quick keyword chips */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.chip {
+  padding: 5px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: 'Noto Sans KR', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.chip:hover { border-color: rgba(255,61,61,0.4); color: var(--accent); }
+
+/* Controls row */
+.controls-row {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;
+}
+.select-box {
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+.select-box option { background: #1a1a26; }
+
+.sort-btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.sort-btn.active { background: var(--surface2); border-color: rgba(255,61,61,0.4); color: var(--text); }
+.sort-btn:hover { color: var(--text); }
+
+.fetch-btn {
+  padding: 10px 24px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex; align-items: center; gap: 8px;
+  margin-left: auto;
+}
+.fetch-btn:hover { background: #e03333; transform: translateY(-1px); }
+.fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Summary bar */
+.summary-bar {
+  display: flex; gap: 20px; flex-wrap: wrap;
+  margin-bottom: 20px; padding: 14px 18px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+}
+.summary-item { display: flex; flex-direction: column; gap: 2px; }
+.summary-label { font-size: 9px; color: var(--dim); font-family: 'Space Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; }
+.summary-value { font-size: 16px; font-weight: 700; font-family: 'Space Mono', monospace; }
+.summary-value.red { color: var(--accent); }
+.summary-value.gold { color: var(--gold); }
+.summary-value.teal { color: var(--teal); }
+
+/* Error */
+.error-box {
+  background: rgba(255,61,61,0.08); border: 1px solid rgba(255,61,61,0.25);
+  border-radius: 10px; padding: 16px 20px;
+  display: flex; align-items: flex-start; gap: 12px;
+  font-size: 13px; line-height: 1.6; color: #ff9090;
+  margin-bottom: 16px;
+}
+
+/* Grid */
+.results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+
+/* Card */
+.video-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.25s;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  animation: fadeUp 0.35s ease both;
+}
+.video-card:hover { border-color: rgba(255,61,61,0.35); transform: translateY(-3px); box-shadow: 0 10px 36px rgba(255,61,61,0.09); }
+@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+.thumb-wrap { position: relative; aspect-ratio: 16/9; overflow: hidden; background: var(--surface2); }
+.thumb-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+.video-card:hover .thumb-wrap img { transform: scale(1.04); }
+
+.rank-badge {
+  position: absolute; top: 8px; left: 8px;
+  background: var(--accent); color: #fff;
+  font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: 4px;
+}
+.gem-badge {
+  position: absolute; top: 8px; right: 8px;
+  background: var(--gold); color: #000;
+  font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
+  padding: 2px 7px; border-radius: 4px;
+}
+.duration-badge {
+  position: absolute; bottom: 7px; right: 7px;
+  background: rgba(0,0,0,0.82); color: #fff;
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  padding: 2px 5px; border-radius: 3px;
+}
+
+.card-body { padding: 12px 14px 14px; }
+.card-title {
+  font-size: 13px; font-weight: 500; line-height: 1.5; margin-bottom: 10px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Stats grid inside card */
+.stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  margin-bottom: 10px;
+}
+.stat-item {
+  background: var(--surface2); border-radius: 6px; padding: 6px 8px;
+}
+.stat-label { font-size: 9px; color: var(--dim); font-family: 'Space Mono', monospace; letter-spacing: 0.05em; margin-bottom: 2px; }
+.stat-value { font-size: 12px; font-family: 'Space Mono', monospace; font-weight: 700; }
+.stat-value.red { color: var(--accent2); }
+.stat-value.gold { color: var(--gold); }
+.stat-value.teal { color: var(--teal); }
+.stat-value.muted { color: var(--muted); font-weight: 400; font-size: 11px; }
+
+.card-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 8px; border-top: 1px solid var(--border);
+}
+.channel-name { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; }
+.upload-date { font-size: 10px; color: var(--dim); font-family: 'Space Mono', monospace; white-space: nowrap; }
+
+/* Hidden gem score indicator */
+.gem-score {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; color: var(--gold); font-family: 'Space Mono', monospace;
+  margin-top: 6px;
+}
+.gem-bar { flex: 1; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.gem-fill { height: 100%; background: var(--gold); border-radius: 2px; }
+
+/* State */
+.state-box { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; text-align: center; gap: 14px; color: var(--muted); }
+.state-icon { font-size: 44px; }
+.state-title { font-size: 15px; font-weight: 500; color: var(--text); }
+.state-desc { font-size: 13px; line-height: 1.6; max-width: 300px; }
+
+.spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">▶</div>
+    <div>
+      <div class="logo-text">TREND RADAR v2</div>
+      <div class="logo-sub">YouTube 심층 분석</div>
+    </div>
+  </div>
+  <div class="last-updated" id="lastUpdated">마지막 업데이트: —</div>
+</header>
+
+<div class="main">
+
+  <!-- Search section -->
+  <div class="search-section">
+    <div class="search-title">키워드 검색</div>
+    <div class="search-row">
+      <input class="search-input" id="searchInput" type="text" placeholder="검색어 입력 (예: 한국사, 타로, 사주, 경제, 심리학...)" />
+      <select class="select-box" id="orderSelect">
+        <option value="viewCount">조회수 높은순</option>
+        <option value="date">최신 업로드순</option>
+        <option value="rating">평점순</option>
+        <option value="relevance">관련도순</option>
+      </select>
+      <select class="select-box" id="regionSelect">
+        <option value="KR">🇰🇷 한국</option>
+        <option value="JP">🇯🇵 일본</option>
+        <option value="US">🇺🇸 미국</option>
+        <option value="TW">🇹🇼 대만</option>
+      </select>
+    </div>
+    <div class="chips" id="chipContainer">
+      <button class="chip" onclick="setKeyword('한국사')">한국사</button>
+      <button class="chip" onclick="setKeyword('경제 전망')">경제</button>
+      <button class="chip" onclick="setKeyword('심리학')">심리학</button>
+      <button class="chip" onclick="setKeyword('건강정보')">건강정보</button>
+      <button class="chip" onclick="setKeyword('IT 기술')">IT/기술</button>
+      <button class="chip" onclick="setKeyword('쇼핑 추천')">쇼핑</button>
+      <button class="chip" onclick="setKeyword('타로')">타로</button>
+      <button class="chip" onclick="setKeyword('사주 운세')">사주</button>
+      <button class="chip" onclick="setKeyword('부동산')">부동산</button>
+      <button class="chip" onclick="setKeyword('주식 투자')">주식</button>
+      <button class="chip" onclick="setKeyword('다이어트')">다이어트</button>
+      <button class="chip" onclick="setKeyword('육아')">육아</button>
+      <button class="chip" onclick="setKeyword('요리 레시피')">요리</button>
+      <button class="chip" onclick="setKeyword('여행')">여행</button>
+      <button class="chip" onclick="setKeyword('영어공부')">영어</button>
+      <button class="chip" onclick="setKeyword('인공지능 AI')">AI</button>
+    </div>
+  </div>
+
+  <!-- Controls row -->
+  <div class="controls-row">
+    <div style="font-size:12px;color:var(--muted);font-family:'Space Mono',monospace;">정렬:</div>
+    <button class="sort-btn active" id="sort-views" onclick="setSort('views')">조회수 높은순</button>
+    <button class="sort-btn" id="sort-gem" onclick="setSort('gem')">숨은 보석 (구독↓ 조회↑)</button>
+    <button class="sort-btn" id="sort-recent" onclick="setSort('recent')">최근 업로드순</button>
+    <button class="sort-btn" id="sort-channel" onclick="setSort('channel')">채널 규모 작은순</button>
+    <button class="fetch-btn" id="fetchBtn" onclick="fetchVideos()">
+      <span id="btnIcon">▶</span>
+      <span id="btnText">검색 / 트렌드 불러오기</span>
+    </button>
+  </div>
+
+  <!-- Error -->
+  <div id="errorBox" class="error-box" style="display:none">
+    <span>⚠</span><span id="errorMsg"></span>
+  </div>
+
+  <!-- Summary -->
+  <div id="summaryBar" class="summary-bar" style="display:none">
+    <div class="summary-item">
+      <div class="summary-label">결과 수</div>
+      <div class="summary-value red" id="sumCount">—</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">총 조회수</div>
+      <div class="summary-value" id="sumViews">—</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">평균 구독자</div>
+      <div class="summary-value teal" id="sumSubs">—</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">최고 숨은보석</div>
+      <div class="summary-value gold" id="sumGem">—</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">검색어</div>
+      <div class="summary-value" id="sumQuery" style="font-size:13px">—</div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div id="content">
+    <div class="state-box">
+      <div class="state-icon">🔍</div>
+      <div class="state-title">키워드를 입력하거나 칩을 클릭하세요</div>
+      <div class="state-desc">타로, 사주, 한국사, 경제 등 원하는 주제로 검색하면 채널 정보까지 상세하게 보여드려요</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API_KEY = 'AIzaSyCzOaKaISR0l-kWH8a8Tzp6dpguB04XJLg';
+let currentSort = 'views';
+let allVideos = [];
+
+function setKeyword(kw) {
+  document.getElementById('searchInput').value = kw;
+  document.getElementById('searchInput').focus();
+}
+
+function setSort(s) {
+  currentSort = s;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sort-' + s).classList.add('active');
+  if (allVideos.length) renderCards(sortVideos(allVideos));
+}
+
+function fmtNum(n) {
+  n = parseInt(n) || 0;
+  if (n >= 100000000) return (n/100000000).toFixed(1) + '억';
+  if (n >= 10000) return Math.floor(n/10000) + '만';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'k';
+  return n.toString();
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays === 0) return '오늘';
+  if (diffDays === 1) return '어제';
+  if (diffDays < 7) return diffDays + '일 전';
+  if (diffDays < 30) return Math.floor(diffDays/7) + '주 전';
+  if (diffDays < 365) return Math.floor(diffDays/30) + '개월 전';
+  return Math.floor(diffDays/365) + '년 전';
+}
+
+function fmtChannelAge(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const now = new Date();
+  const years = (now - d) / (365.25 * 24 * 3600 * 1000);
+  if (years < 1) return Math.floor(years * 12) + '개월';
+  return years.toFixed(1) + '년';
+}
+
+function parseDuration(dur) {
+  if (!dur) return '';
+  const m = dur.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return '';
+  const h = parseInt(m[1]||0), min = parseInt(m[2]||0), s = parseInt(m[3]||0);
+  if (h > 0) return h + ':' + String(min).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  return min + ':' + String(s).padStart(2,'0');
+}
+
+// Gem score: high views relative to subscriber count
+function gemScore(video) {
+  const views = parseInt(video.statistics?.viewCount || 0);
+  const subs = parseInt(video.channelInfo?.subscriberCount || 1);
+  if (subs < 1) return 0;
+  return views / subs;
+}
+
+function sortVideos(videos) {
+  const v = [...videos];
+  if (currentSort === 'views') {
+    return v.sort((a,b) => parseInt(b.statistics?.viewCount||0) - parseInt(a.statistics?.viewCount||0));
+  } else if (currentSort === 'gem') {
+    return v.sort((a,b) => gemScore(b) - gemScore(a));
+  } else if (currentSort === 'recent') {
+    return v.sort((a,b) => new Date(b.snippet?.publishedAt) - new Date(a.snippet?.publishedAt));
+  } else if (currentSort === 'channel') {
+    return v.sort((a,b) => parseInt(a.channelInfo?.subscriberCount||0) - parseInt(b.channelInfo?.subscriberCount||0));
+  }
+  return v;
+}
+
+async function fetchVideos() {
+  const keyword = document.getElementById('searchInput').value.trim();
+  const order = document.getElementById('orderSelect').value;
+  const region = document.getElementById('regionSelect').value;
+  const btn = document.getElementById('fetchBtn');
+  const icon = document.getElementById('btnIcon');
+  const txt = document.getElementById('btnText');
+
+  btn.disabled = true;
+  icon.textContent = '⟳';
+  txt.textContent = '불러오는 중...';
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('summaryBar').style.display = 'none';
+  document.getElementById('content').innerHTML = `<div class="state-box"><div class="spinner"></div><div class="state-title">데이터 수신 중...</div><div class="state-desc">채널 정보까지 가져오는 중이라 조금 걸려요</div></div>`;
+
+  try {
+    let videoItems = [];
+
+    if (keyword) {
+      // Search by keyword
+      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(keyword)}&regionCode=${region}&maxResults=20&order=${order}&key=${API_KEY}`;
+      const searchRes = await fetch(searchUrl);
+      const searchData = await searchRes.json();
+      if (searchData.error) throw new Error(searchData.error.message);
+
+      const videoIds = (searchData.items || []).map(i => i.id.videoId).join(',');
+      if (!videoIds) throw new Error('검색 결과가 없어요');
+
+      // Get full video details
+      const detailUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${API_KEY}`;
+      const detailRes = await fetch(detailUrl);
+      const detailData = await detailRes.json();
+      if (detailData.error) throw new Error(detailData.error.message);
+      videoItems = detailData.items || [];
+
+    } else {
+      // Trending (no keyword)
+      const trendUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=${region}&maxResults=20&key=${API_KEY}`;
+      const trendRes = await fetch(trendUrl);
+      const trendData = await trendRes.json();
+      if (trendData.error) throw new Error(trendData.error.message);
+      videoItems = trendData.items || [];
+    }
+
+    if (!videoItems.length) throw new Error('결과가 없어요. 다른 키워드를 시도해보세요.');
+
+    // Collect unique channel IDs
+    const channelIds = [...new Set(videoItems.map(v => v.snippet?.channelId).filter(Boolean))].join(',');
+
+    // Fetch channel info (subscribers + creation date)
+    const chanUrl = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelIds}&key=${API_KEY}`;
+    const chanRes = await fetch(chanUrl);
+    const chanData = await chanRes.json();
+    if (chanData.error) throw new Error(chanData.error.message);
+
+    const channelMap = {};
+    (chanData.items || []).forEach(c => { channelMap[c.id] = { ...c.statistics, publishedAt: c.snippet?.publishedAt }; });
+
+    // Attach channel info to videos
+    videoItems.forEach(v => { v.channelInfo = channelMap[v.snippet?.channelId] || {}; });
+
+    allVideos = videoItems;
+    const sorted = sortVideos(allVideos);
+
+    // Summary
+    const totalViews = allVideos.reduce((s,v) => s + parseInt(v.statistics?.viewCount||0), 0);
+    const avgSubs = Math.floor(allVideos.reduce((s,v) => s + parseInt(v.channelInfo?.subscriberCount||0), 0) / allVideos.length);
+    const topGem = [...allVideos].sort((a,b) => gemScore(b)-gemScore(a))[0];
+
+    document.getElementById('sumCount').textContent = allVideos.length;
+    document.getElementById('sumViews').textContent = fmtNum(totalViews);
+    document.getElementById('sumSubs').textContent = fmtNum(avgSubs);
+    document.getElementById('sumGem').textContent = topGem?.snippet?.channelTitle?.slice(0,10) || '—';
+    document.getElementById('sumQuery').textContent = keyword || '인기 트렌드';
+    document.getElementById('summaryBar').style.display = 'flex';
+
+    renderCards(sorted);
+    document.getElementById('lastUpdated').textContent = '마지막 업데이트: ' + new Date().toLocaleTimeString('ko-KR');
+
+  } catch (err) {
+    document.getElementById('errorMsg').textContent = '오류: ' + err.message;
+    document.getElementById('errorBox').style.display = 'flex';
+    document.getElementById('content').innerHTML = `<div class="state-box"><div class="state-icon">⚠</div><div class="state-title">불러오기 실패</div><div class="state-desc">${err.message}</div></div>`;
+  } finally {
+    btn.disabled = false;
+    icon.textContent = '▶';
+    txt.textContent = '검색 / 트렌드 불러오기';
+  }
+}
+
+function renderCards(videos) {
+  const maxGem = Math.max(...videos.map(v => gemScore(v)), 1);
+  const grid = document.createElement('div');
+  grid.className = 'results-grid';
+
+  videos.forEach((video, i) => {
+    const s = video.snippet || {};
+    const st = video.statistics || {};
+    const cd = video.contentDetails || {};
+    const ch = video.channelInfo || {};
+    const thumb = s.thumbnails?.medium?.url || '';
+    const url = 'https://www.youtube.com/watch?v=' + video.id;
+    const duration = parseDuration(cd.duration);
+    const gem = gemScore(video);
+    const gemPct = Math.round((gem / maxGem) * 100);
+    const isGem = gemPct >= 70 && parseInt(ch.subscriberCount||0) < 100000;
+
+    const card = document.createElement('a');
+    card.className = 'video-card';
+    card.href = url;
+    card.target = '_blank';
+    card.rel = 'noopener noreferrer';
+    card.style.animationDelay = (i * 0.035) + 's';
+
+    card.innerHTML = `
+      <div class="thumb-wrap">
+        <img src="${thumb}" alt="" loading="lazy" onerror="this.style.display='none'">
+        <div class="rank-badge">#${i+1}</div>
+        ${isGem ? '<div class="gem-badge">숨은보석</div>' : ''}
+        ${duration ? `<div class="duration-badge">${duration}</div>` : ''}
+      </div>
+      <div class="card-body">
+        <div class="card-title">${s.title || '제목 없음'}</div>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-label">조회수</div>
+            <div class="stat-value red">${fmtNum(st.viewCount)}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">구독자</div>
+            <div class="stat-value teal">${ch.subscriberCount ? fmtNum(ch.subscriberCount) : '비공개'}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">좋아요</div>
+            <div class="stat-value gold">${fmtNum(st.likeCount)}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">채널 개설</div>
+            <div class="stat-value muted">${fmtChannelAge(ch.publishedAt)} 전</div>
+          </div>
+        </div>
+        ${currentSort === 'gem' ? `
+        <div class="gem-score">
+          <span>숨은보석 지수</span>
+          <div class="gem-bar"><div class="gem-fill" style="width:${gemPct}%"></div></div>
+          <span>${gemPct}%</span>
+        </div>` : ''}
+        <div class="card-footer">
+          <div class="channel-name">${s.channelTitle || ''}</div>
+          <div class="upload-date">${fmtDate(s.publishedAt)}</div>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  document.getElementById('content').innerHTML = '';
+  document.getElementById('content').appendChild(grid);
+}
+
+// Enter key search
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('searchInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') fetchVideos();
+  });
+});
+</script>
+</body>
+</html>
