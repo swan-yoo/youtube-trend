@@ -509,8 +509,10 @@ async function fetchVideos() {
     let videoItems = [];
 
     if (keyword) {
-      // 키워드 검색 — relevance order, 최신순은 나중에 JS로 정렬
-      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(keyword)}&regionCode=${region}&maxResults=20&order=relevance&key=${API_KEY}`;
+      // 정렬 기준: 최신순이면 API도 date로 요청, 나머지는 relevance
+      const apiOrder = currentSort === 'recent' ? 'date' : 'relevance';
+      // 50개 요청 (Search API 최대치) — 쇼츠 필터 후에도 충분히 남도록
+      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(keyword)}&regionCode=${region}&maxResults=50&order=${apiOrder}&key=${API_KEY}`;
       const searchRes = await fetch(searchUrl);
       const searchData = await searchRes.json();
       if (searchData.error) throw new Error(searchData.error.message);
@@ -518,12 +520,13 @@ async function fetchVideos() {
       const ids = (searchData.items||[]).map(i => i.id.videoId).filter(Boolean).join(',');
       if (!ids) throw new Error('검색 결과가 없어요');
 
+      // videos.list는 한번에 50개까지 가능
       const detailRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids}&key=${API_KEY}`);
       const detailData = await detailRes.json();
       if (detailData.error) throw new Error(detailData.error.message);
       videoItems = detailData.items || [];
     } else {
-      const trendRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=${region}&maxResults=20&key=${API_KEY}`);
+      const trendRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=${region}&maxResults=50&key=${API_KEY}`);
       const trendData = await trendRes.json();
       if (trendData.error) throw new Error(trendData.error.message);
       videoItems = trendData.items || [];
